@@ -1,0 +1,10 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: order-revenue-app
+
+logging:
+  level:
+    com.example.orders: INFO
