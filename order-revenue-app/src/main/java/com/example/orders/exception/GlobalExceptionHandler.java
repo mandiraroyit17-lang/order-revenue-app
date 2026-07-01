@@ -13,9 +13,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Centralized error handling for the REST API.
- * Every exception type below is translated into a consistent ErrorResponse
- * body and an appropriate HTTP status code.
+ * Translates common API errors into a consistent ErrorResponse payload.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -32,7 +30,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Triggered by @Valid failures on @RequestBody DTOs (e.g. OrderRequest).
+     * Handles validation failures from @Valid request bodies.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
@@ -50,8 +48,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Triggered when a query/path param can't be converted to the target type,
-     * e.g. GET /orders?month=not-a-date
+     * Handles query or path parameters that cannot be converted.
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
@@ -69,7 +66,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Triggered on malformed JSON request bodies.
+     * Handles malformed JSON request bodies.
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleMalformedJson(HttpMessageNotReadableException ex) {
@@ -83,7 +80,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Catch-all fallback so the client never sees a raw stack trace.
+     * Catch-all fallback so the client gets a clean error response.
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {

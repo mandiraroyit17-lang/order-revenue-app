@@ -24,9 +24,7 @@ public class OrderController {
     }
 
     /**
-     * POST /orders
-     * Creates a new order. Returns 201 Created with a Location header pointing
-     * to the new resource, and the created order in the body.
+     * Creates a new order and returns the saved record.
      */
     @PostMapping
     public ResponseEntity<Order> createOrder(@Valid @RequestBody OrderRequest request) {
@@ -36,8 +34,7 @@ public class OrderController {
     }
 
     /**
-     * GET /orders/{id}
-     * Returns 200 with the order, or 404 (via GlobalExceptionHandler) if not found.
+     * Returns a single order by id.
      */
     @GetMapping("/{id}")
     public ResponseEntity<Order> getOrderById(@PathVariable Long id) {
@@ -46,9 +43,7 @@ public class OrderController {
     }
 
     /**
-     * GET /orders?month=YYYY-MM
-     * If month is omitted, returns all orders. Spring's built-in YearMonth
-     * converter handles parsing/validation of the "YYYY-MM" format.
+     * Lists orders, optionally filtered by month.
      */
     @GetMapping
     public ResponseEntity<List<Order>> getOrders(

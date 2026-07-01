@@ -1,39 +1,84 @@
 # Order Revenue App
 
-A small Spring Boot 3.x / Java 17 application that manages orders and calculates monthly revenue.
+A Spring Boot 3.x / Java 17 REST application for managing customer orders and calculating monthly revenue.
 
 ## Tech Stack
-- Java 17
-- Spring Boot 3.3.x (Web, Validation)
-- Maven
-- JUnit 5
 
-## How to Run
+* Java 17
+* Spring Boot 3.x
+* Spring Web
+* Spring Data JPA
+* Jakarta Bean Validation
+* H2 Database (development)
+* Maven
+* JUnit 5
+* Mockito
 
-### Prerequisites
-- JDK 17+
-- Maven 3.8+
+---
 
-### Build and run
+## Prerequisites
+
+* JDK 17+
+* Maven 3.8+
+
+---
+
+## Build and Run
+
 ```bash
 mvn clean install
 mvn spring-boot:run
 ```
 
-The app starts on **http://localhost:8080**.
+The application starts on:
 
-### Run tests only
+```
+http://localhost:8080
+```
+
+---
+
+## Running Tests
+
 ```bash
 mvn test
 ```
 
-## API Endpoints
+---
 
-### Create an order
+## Database
+
+The application uses an **H2 in-memory database** for development.
+
+Hibernate automatically creates the required tables on startup.
+
+Example configuration:
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
 ```
-POST /orders
-Content-Type: application/json
 
+---
+
+# REST APIs
+
+## Create Order
+
+**POST** `/orders`
+
+Request
+
+```json
 {
   "customerId": "CUST-001",
   "customerType": "PREMIUM",
@@ -41,67 +86,204 @@ Content-Type: application/json
   "orderDate": "2024-01-15"
 }
 ```
-Returns `201 Created` with the saved order (including generated `id`) and a `Location` header.
 
-### Get an order by id
+Response
+
+* **201 Created**
+* Returns the created order including its generated `id`
+* Includes a `Location` response header
+
+---
+
+## Get Order by Id
+
+**GET**
+
 ```
-GET /orders/{id}
+/orders/{id}
 ```
-Returns `200 OK` with the order, or `404 Not Found` if it doesn't exist.
 
-### List orders, optionally filtered by month
+Returns:
+
+* **200 OK** if the order exists
+* **404 Not Found** if the order does not exist
+
+---
+
+## Get All Orders
+
+**GET**
+
 ```
-GET /orders
-GET /orders?month=2024-01
+/orders
 ```
-Returns `200 OK` with a list of orders. `month` must be in `YYYY-MM` format; an invalid format returns `400 Bad Request`.
 
-## Part 1 — Monthly Revenue Calculation
+Returns all stored orders.
 
-Implemented in `RevenueService#calculateMonthlyRevenue(List<Order>)`.
+---
 
-Rules implemented:
-- Groups orders by `YearMonth` (derived from `orderDate`)
-- Applies a 10% discount to `PREMIUM` customer order amounts before summing
-- Ignores orders with a `null` or negative `amount` (zero-amount orders are kept, since zero is valid revenue, just contributes nothing)
-- Implemented using Java 8+ Streams (`Collectors.groupingBy` + `Collectors.reducing`), no manual loops
-- `BigDecimal` is used throughout (not `double`) to avoid floating-point rounding errors with currency
-- Result map is returned sorted chronologically by month
+## Get Orders by Month
 
-Covered by unit tests in `RevenueServiceTest`.
+**GET**
 
-## Error Handling
+```
+/orders?month=2024-01
+```
 
-Centralized via `@RestControllerAdvice` (`GlobalExceptionHandler`), covering:
-- `404` — order not found
-- `400` — Bean Validation failures (missing/invalid fields), malformed JSON, invalid `month` query param format
-- `500` — fallback for any unhandled exception
+Returns all orders belonging to the specified month.
 
-All errors return a consistent JSON shape:
+---
+
+## Monthly Revenue
+
+**GET**
+
+```
+/revenue
+```
+
+Returns revenue grouped by calendar month.
+
+Example response
+
+```json
+{
+    "2024-01": 135.00,
+    "2024-02": 540.00
+}
+```
+
+Optionally, revenue can be calculated for a specific month:
+
+```
+GET /revenue?month=2024-01
+```
+
+---
+
+# Revenue Calculation Rules
+
+Revenue calculation is implemented in `RevenueService`.
+
+Business rules:
+
+* Orders are grouped by `YearMonth`
+* PREMIUM customers receive a **10% discount**
+* Discount is applied only during revenue calculation
+* Stored order amounts remain unchanged
+* Orders with null values or negative amounts are ignored
+* `BigDecimal` is used for all monetary calculations
+* Revenue is returned in chronological order
+
+Example
+
+| Customer Type | Amount | Revenue Counted |
+| ------------- | ------ | --------------- |
+| REGULAR       | 100.00 | 100.00          |
+| PREMIUM       | 150.00 | 135.00          |
+
+---
+
+# Validation
+
+The application validates incoming requests using Jakarta Bean Validation.
+
+Examples include:
+
+* customerId must not be blank
+* amount must be non-negative
+* customerType is required
+* orderDate is required
+
+Invalid requests return **400 Bad Request**.
+
+---
+
+# Error Handling
+
+Global exception handling is implemented using `@RestControllerAdvice`.
+
+Supported responses include:
+
+* **400 Bad Request**
+
+    * Validation failures
+    * Invalid request payload
+    * Invalid month format
+
+* **404 Not Found**
+
+    * Order not found
+
+* **500 Internal Server Error**
+
+    * Unexpected server errors
+
+Example response
+
 ```json
 {
   "timestamp": "...",
   "status": 400,
   "error": "Bad Request",
   "message": "Validation failed",
-  "details": ["amount: amount must not be negative"]
+  "details": [
+    "amount must be greater than or equal to 0"
+  ]
 }
 ```
 
-## Assumptions
+---
 
-1. **Storage**: in-memory only (`ConcurrentHashMap`), as specified — no persistence across restarts.
-2. **ID generation**: server-assigned, auto-incrementing `Long`. Any `id` in the POST request body is ignored.
-3. **PREMIUM discount**: applied only when calculating revenue (`RevenueService`); the stored `Order.amount` itself is never mutated — i.e. the discount is a reporting-time calculation, not a change to the original order record.
-4. **Negative amounts**: orders with a negative or null amount are excluded entirely from revenue totals, but are still retrievable via `GET /orders` and `GET /orders/{id}` (the exclusion only applies to the revenue calculation, not to order storage/retrieval) — validation on the `POST /orders` request body separately prevents negative amounts from being created in the first place via Bean Validation (`@DecimalMin`).
-5. **Zero-amount orders**: treated as valid and included in revenue (contributing `0.00`), since the spec only said to ignore "null or negative," not zero.
-6. **Month filtering**: `GET /orders?month=YYYY-MM` with no `month` param returns all orders, rather than erroring.
-7. **OSGi (Part 3)**: not implemented (optional bonus, out of scope for this submission). See discussion in Part 4 notes below if included separately.
+# Project Structure
 
-## Part 4 — Spring Boot vs. OSGi (short answer)
+```
+controller/
+    OrderController
+    RevenueController
 
-**Prefer Spring Boot** for the vast majority of modern applications — standalone microservices, REST APIs, typical enterprise backends. It has a much shallower learning curve, a single classloader (simpler debugging), a huge ecosystem, and is the default expectation for cloud-native deployments (containers, Kubernetes) where the whole point is immutable, redeployable units rather than live in-place patching.
+service/
+    OrderService
+    RevenueService
 
-**Consider OSGi** when the core requirement is genuinely **dynamic modularity at runtime** — installing, updating, or removing modules in a running JVM without downtime, and/or needing strict classloader isolation between modules that may depend on conflicting versions of the same library. This shows up in plugin-based platforms (e.g. Eclipse), some telecom/embedded systems, and legacy enterprise application servers.
+repository/
+    OrderRepository
 
-**OSGi would be a bad choice** for most new projects: it adds substantial complexity (manifest configuration, bundle lifecycle management, classloader debugging), the tooling/ecosystem is far smaller than Spring Boot's, hiring/onboarding is harder since OSGi expertise is rare, and in containerized/cloud-native environments the "redeploy a fresh immutable container" pattern already solves the problem OSGi was designed for — making OSGi's dynamic hot-swap capability largely redundant.
+model/
+    Order
+    CustomerType
+
+dto/
+    OrderRequest
+
+exception/
+    GlobalExceptionHandler
+```
+
+---
+
+# Assumptions
+
+1. Orders are persisted using Spring Data JPA.
+2. IDs are generated automatically by the database.
+3. Revenue calculations never modify stored order amounts.
+4. Premium customers receive a fixed 10% discount.
+5. Orders with invalid or negative amounts are excluded from revenue calculations.
+6. Month filtering uses the `YYYY-MM` format.
+7. Revenue is calculated dynamically from the stored orders.
+
+---
+
+# Spring Boot vs OSGi
+
+For this application, **Spring Boot** is the preferred choice.
+
+Spring Boot provides:
+
+* Simple application configuration
+* Embedded server support
+* Excellent REST API development
+* Strong integration with Spring Data JPA
+* Large ecosystem and community support
+
+OSGi is better suited for applications requiring runtime module loading and dynamic deployment, but it introduces additional complexity that is unnecessary for this project.

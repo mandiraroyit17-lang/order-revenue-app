@@ -4,7 +4,18 @@ server:
 spring:
   application:
     name: order-revenue-app
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create
 
 logging:
   level:
     com.example.orders: INFO
+
+

@@ -1,17 +1,29 @@
 package com.example.orders.model;
 
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Objects;
 
 /**
- * Domain model representing a single order.
- * Amount uses BigDecimal to avoid floating point rounding issues with currency.
+ * Domain model for a single order.
+ * BigDecimal is used for amount to avoid floating point rounding issues.
  */
+@Entity
+@Table(name = "orders")
 public class Order {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String customerId;
+    @Enumerated(EnumType.STRING)
     private CustomerType customerType;
     private BigDecimal amount;
     private LocalDate orderDate;

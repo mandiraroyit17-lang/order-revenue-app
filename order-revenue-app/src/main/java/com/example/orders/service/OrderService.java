@@ -38,7 +38,7 @@ public class OrderService {
      * If month is null, returns all orders.
      */
     public List<Order> getOrders(YearMonth month) {
-        List<Order> all = List.copyOf(orderRepository.findAll());
+        List<Order> all = orderRepository.findAll();
         if (month == null) {
             return all;
         }

@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Uniform error payload returned by the centralized exception handler.
+ * Error payload returned by the API.
  */
 public class ErrorResponse {
 
